@@ -7,6 +7,29 @@ st.set_page_config(page_title="Análise Detalhada: MF vs Sem MF", layout="wide")
 
 st.title("📊 Comparador de Performance: Ex-MF vs Sem MF")
 
+# --- Função de Formatação Brasileira ---
+def format_br(valor, tipo):
+    """
+    Formata números para o padrão brasileiro (1.000,00).
+    tipo: 'dinheiro', 'porcentagem', 'decimal'
+    """
+    if tipo == 'dinheiro':
+        # Ex: 1234.56 -> R$ 1.234,56
+        texto = f"R$ {valor:,.2f}"
+        return texto.replace(',', 'X').replace('.', ',').replace('X', '.')
+    
+    elif tipo == 'porcentagem':
+        # Ex: 0.50 -> 50,0%
+        texto = f"{valor:.1%}"
+        return texto.replace('.', ',')
+    
+    elif tipo == 'decimal':
+        # Ex: 1234.5 -> 1.234,5
+        texto = f"{valor:,.1f}"
+        return texto.replace(',', 'X').replace('.', ',').replace('X', '.')
+    
+    return str(valor)
+
 # --- Upload de Arquivos ---
 st.sidebar.header("📂 Carregar Dados")
 file_sem_mf = st.sidebar.file_uploader("Upload: Planilha Sem MF", type=["xlsx", "csv"])
@@ -49,7 +72,6 @@ if file_sem_mf and file_mf:
                 st.markdown(f"Comparativo direto indicador por indicador.")
                 st.markdown("---")
 
-                # Lista exata de métricas solicitadas
                 metrics_to_plot = [
                     'Sobrevivência (%)',
                     'Tempo Médio (desl.) (meses)',
@@ -62,41 +84,42 @@ if file_sem_mf and file_mf:
                     'Receita Média (Exc. desl.)'
                 ]
 
-                # Cores padrão para manter consistência
                 color_sem_mf = '#4c72b0' # Azul
                 color_mf = '#55a868'     # Verde
 
-                # Loop para gerar Gráfico + Tabela para cada métrica
                 for metric in metrics_to_plot:
                     if metric in row_sem and metric in row_mf:
                         
                         val_sem = row_sem[metric]
                         val_mf = row_mf[metric]
+                        diff = val_mf - val_sem
                         
-                        # Definição de formatação baseada no nome da métrica
+                        # Definição de formatação e cálculo da diferença formatada
                         if "(%)" in metric:
-                            fmt = ".1%"
-                            text_fmt_sem = f"{val_sem:.1%}"
-                            text_fmt_mf = f"{val_mf:.1%}"
+                            text_fmt_sem = format_br(val_sem, 'porcentagem')
+                            text_fmt_mf = format_br(val_mf, 'porcentagem')
+                            text_diff = format_br(diff, 'porcentagem')
+                            
                         elif "AuC" in metric or "Receita" in metric:
-                            fmt = ",.2f"
-                            text_fmt_sem = f"R$ {val_sem:,.2f}"
-                            text_fmt_mf = f"R$ {val_mf:,.2f}"
+                            text_fmt_sem = format_br(val_sem, 'dinheiro')
+                            text_fmt_mf = format_br(val_mf, 'dinheiro')
+                            text_diff = format_br(diff, 'dinheiro').replace("R$ ", "") # Remove R$ na diff para ficar mais limpo
+                            
                         elif "meses" in metric:
-                            fmt = ".1f"
-                            text_fmt_sem = f"{val_sem:.1f} meses"
-                            text_fmt_mf = f"{val_mf:.1f} meses"
+                            text_fmt_sem = f"{format_br(val_sem, 'decimal')} meses"
+                            text_fmt_mf = f"{format_br(val_mf, 'decimal')} meses"
+                            text_diff = f"{format_br(diff, 'decimal')}"
                         else:
-                            fmt = ""
-                            text_fmt_sem = f"{val_sem}"
-                            text_fmt_mf = f"{val_mf}"
+                            text_fmt_sem = str(val_sem)
+                            text_fmt_mf = str(val_mf)
+                            text_diff = str(diff)
 
                         # Container para o bloco do indicador
                         with st.container():
                             st.subheader(metric)
                             col_graph, col_table = st.columns([2, 1])
 
-                            # --- Coluna 1: Gráfico Individual ---
+                            # --- Coluna 1: Gráfico ---
                             with col_graph:
                                 fig = go.Figure()
                                 fig.add_trace(go.Bar(
@@ -113,23 +136,19 @@ if file_sem_mf and file_mf:
                                 )
                                 st.plotly_chart(fig, use_container_width=True)
 
-                            # --- Coluna 2: Tabela Dedicada ---
+                            # --- Coluna 2: Tabela ---
                             with col_table:
                                 st.markdown("##### Dados Detalhados")
                                 df_display = pd.DataFrame({
                                     "Grupo": ["Sem MF", "Com MF"],
                                     "Valor": [text_fmt_sem, text_fmt_mf],
-                                    "Diferença Abs.": [
-                                        "-", 
-                                        f"{val_mf - val_sem:,.2f}" if "R$" not in text_fmt_mf and "%" not in text_fmt_mf else 
-                                        (f"{(val_mf - val_sem):.1%}" if "%" in text_fmt_mf else f"{val_mf - val_sem:.1f}")
-                                    ]
+                                    "Diferença Abs.": ["-", text_diff]
                                 })
                                 st.table(df_display)
                             
                             st.markdown("---")
                     else:
-                        st.warning(f"Indicador '{metric}' não encontrado nas colunas do arquivo.")
+                        st.warning(f"Indicador '{metric}' não encontrado nas colunas.")
 
             except IndexError:
                 st.warning("Dados incompletos para a turma selecionada.")
