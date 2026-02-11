@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 # Configuração da Página
 st.set_page_config(page_title="Análise Detalhada: MF vs Sem MF", layout="wide")
 
-st.title("📊 Comparador de Performance: Ex-MF vs Sem MF (Geeko Mode 🦎)")
+st.title("📊 Comparador de Performance: Ex-MF vs Sem MF")
 
 # --- Função de Formatação Brasileira ---
 def format_br(valor, tipo):
@@ -34,7 +34,6 @@ def normalize_columns(df):
     """
     cols_map = {}
     for col in df.columns:
-        # Verifica variações de "Receita" e "Mediana" e "Exc"
         if "Receita" in col and "Mediana" in col and ("Exc" in col or "exc" in col):
             cols_map[col] = "Receita Mediana (Exc. desl.)"
             
@@ -83,24 +82,17 @@ if file_sem_mf and file_mf:
                 st.markdown(f"Comparativo direto indicador por indicador.")
                 st.markdown("---")
 
-                # Lista Reordenada: Média seguida de Mediana
                 metrics_to_plot = [
-                    # KPIs Gerais
                     'Sobrevivência (%)',
                     'Tempo Médio (desl.) (meses)',
                     'AuC Total',
                     'Receita Anual (F12M) (0.4%)',
-                    
-                    # Bloco AuC (Média -> Mediana)
                     'AuC Médio (Inc. desl.)',
                     'AuC Mediano (Inc. desl.)',
-                    
                     'AuC Médio (Exc. desl.)',
                     'AuC Mediano (Exc. desl.)',
-                    
-                    # Bloco Receita (Média -> Mediana)
                     'Receita Média (Exc. desl.)',
-                    'Receita Mediana (Exc. desl.)' # Agora padronizado!
+                    'Receita Mediana (Exc. desl.)'
                 ]
 
                 color_sem_mf = '#4c72b0'
@@ -117,17 +109,14 @@ if file_sem_mf and file_mf:
                         else:
                             diff = 0
                         
-                        # Formatação
                         if "(%)" in metric:
                             text_fmt_sem = format_br(val_sem, 'porcentagem')
                             text_fmt_mf = format_br(val_mf, 'porcentagem')
                             text_diff = format_br(diff, 'porcentagem')
-                            
                         elif "AuC" in metric or "Receita" in metric:
                             text_fmt_sem = format_br(val_sem, 'dinheiro')
                             text_fmt_mf = format_br(val_mf, 'dinheiro')
                             text_diff = format_br(diff, 'dinheiro').replace("R$ ", "")
-                            
                         elif "meses" in metric:
                             text_fmt_sem = f"{format_br(val_sem, 'decimal')} meses"
                             text_fmt_mf = f"{format_br(val_mf, 'decimal')} meses"
@@ -137,7 +126,6 @@ if file_sem_mf and file_mf:
                             text_fmt_mf = str(val_mf)
                             text_diff = str(diff)
 
-                        # Layout: Gráfico + Tabela
                         with st.container():
                             st.subheader(metric)
                             col_graph, col_table = st.columns([2, 1])
@@ -156,7 +144,8 @@ if file_sem_mf and file_mf:
                                     height=300,
                                     showlegend=False
                                 )
-                                st.plotly_chart(fig, use_container_width=True)
+                                # --- A CORREÇÃO ESTÁ AQUI EMBAIXO ---
+                                st.plotly_chart(fig, use_container_width=True, key=metric)
 
                             with col_table:
                                 st.markdown("##### Dados Detalhados")
