@@ -79,10 +79,9 @@ if file_sem_mf and file_mf:
                 row_mf = df_mf[df_mf['Turma'] == selected_turma].iloc[0]
 
                 st.header(f"🔎 Análise da Turma {selected_turma}")
-                st.markdown(f"Comparativo direto indicador por indicador.")
-                st.markdown("---")
-
-                metrics_to_plot = [
+                
+                # --- LISTAS DE INDICADORES ---
+                all_metrics = [
                     'Sobrevivência (%)',
                     'Tempo Médio (desl.) (meses)',
                     'AuC Total',
@@ -94,11 +93,30 @@ if file_sem_mf and file_mf:
                     'Receita Média (Exc. desl.)',
                     'Receita Mediana (Exc. desl.)'
                 ]
+                
+                # Definição do Default (AuC e Receita apenas)
+                default_metrics = [
+                    'AuC Total',
+                    'Receita Anual (F12M) (0.4%)',
+                    'AuC Médio (Inc. desl.)',
+                    'AuC Mediano (Inc. desl.)',
+                    'AuC Médio (Exc. desl.)',
+                    'AuC Mediano (Exc. desl.)',
+                    'Receita Média (Exc. desl.)',
+                    'Receita Mediana (Exc. desl.)'
+                ]
 
-                color_sem_mf = '#4c72b0'
-                color_mf = '#55a868'
+                # --- SELETOR DE DADOS (MULTISELECT) ---
+                selected_metrics = st.multiselect(
+                    "📌 Selecione os indicadores que deseja visualizar:",
+                    options=all_metrics,
+                    default=default_metrics
+                )
+                
+                st.markdown("---")
 
-                for metric in metrics_to_plot:
+                # Loop apenas nos itens selecionados pelo usuário
+                for metric in selected_metrics:
                     if metric in row_sem and metric in row_mf:
                         
                         val_sem = row_sem[metric]
@@ -137,14 +155,14 @@ if file_sem_mf and file_mf:
                                     y=[val_sem, val_mf],
                                     text=[text_fmt_sem, text_fmt_mf],
                                     textposition='auto',
-                                    marker_color=[color_sem_mf, color_mf]
+                                    marker_color=['#4c72b0', '#55a868']
                                 ))
                                 fig.update_layout(
                                     margin=dict(l=20, r=20, t=20, b=20),
                                     height=300,
                                     showlegend=False
                                 )
-                                # --- A CORREÇÃO ESTÁ AQUI EMBAIXO ---
+                                # Mantendo a Key única para evitar erro de ID duplicado
                                 st.plotly_chart(fig, use_container_width=True, key=metric)
 
                             with col_table:
