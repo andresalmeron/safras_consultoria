@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 # Configuração da Página
 st.set_page_config(page_title="Análise Detalhada: MF vs Sem MF", layout="wide")
 
-st.title("📊 Comparador de Performance: Ex-MF vs Sem MF")
+st.title("📊 Comparador de Performance: Ex-MF vs Sem MF (Geeko Mode 🦎)")
 
 # --- Função de Formatação Brasileira ---
 def format_br(valor, tipo):
@@ -13,6 +13,9 @@ def format_br(valor, tipo):
     Formata números para o padrão brasileiro (1.000,00).
     tipo: 'dinheiro', 'porcentagem', 'decimal'
     """
+    if pd.isna(valor):
+        return "-"
+        
     if tipo == 'dinheiro':
         # Ex: 1234.56 -> R$ 1.234,56
         texto = f"R$ {valor:,.2f}"
@@ -72,29 +75,42 @@ if file_sem_mf and file_mf:
                 st.markdown(f"Comparativo direto indicador por indicador.")
                 st.markdown("---")
 
+                # Lista Reordenada: Pares de Média e Mediana
                 metrics_to_plot = [
+                    # KPIs Gerais
                     'Sobrevivência (%)',
                     'Tempo Médio (desl.) (meses)',
                     'AuC Total',
-                    'AuC Médio (Inc. desl.)',
-                    'AuC Médio (Exc. desl.)',
-                    'AuC Mediano (Inc. desl.)',
-                    'AuC Mediano (Exc. desl.)',
                     'Receita Anual (F12M) (0.4%)',
-                    'Receita Média (Exc. desl.)'
+                    
+                    # Bloco AuC (Média vs Mediana)
+                    'AuC Médio (Inc. desl.)',
+                    'AuC Mediano (Inc. desl.)',
+                    'AuC Médio (Exc. desl.)',
+                    'AuC Mediano (Exc. desl.)',
+                    
+                    # Bloco Receita (Média vs Mediana)
+                    'Receita Média (Exc. desl.)',
+                    'Receita - Mediana (exc. Desl.)' # Nova Coluna
                 ]
 
                 color_sem_mf = '#4c72b0' # Azul
                 color_mf = '#55a868'     # Verde
 
                 for metric in metrics_to_plot:
+                    # Verifica se a coluna existe no dataframe carregado
                     if metric in row_sem and metric in row_mf:
                         
                         val_sem = row_sem[metric]
                         val_mf = row_mf[metric]
-                        diff = val_mf - val_sem
                         
-                        # Definição de formatação e cálculo da diferença formatada
+                        # Cálculo da diferença (tratando possíveis nulos)
+                        if pd.notna(val_sem) and pd.notna(val_mf):
+                            diff = val_mf - val_sem
+                        else:
+                            diff = 0
+                        
+                        # Definição de formatação
                         if "(%)" in metric:
                             text_fmt_sem = format_br(val_sem, 'porcentagem')
                             text_fmt_mf = format_br(val_mf, 'porcentagem')
@@ -103,7 +119,7 @@ if file_sem_mf and file_mf:
                         elif "AuC" in metric or "Receita" in metric:
                             text_fmt_sem = format_br(val_sem, 'dinheiro')
                             text_fmt_mf = format_br(val_mf, 'dinheiro')
-                            text_diff = format_br(diff, 'dinheiro').replace("R$ ", "") # Remove R$ na diff para ficar mais limpo
+                            text_diff = format_br(diff, 'dinheiro').replace("R$ ", "")
                             
                         elif "meses" in metric:
                             text_fmt_sem = f"{format_br(val_sem, 'decimal')} meses"
@@ -148,9 +164,11 @@ if file_sem_mf and file_mf:
                             
                             st.markdown("---")
                     else:
-                        st.warning(f"Indicador '{metric}' não encontrado nas colunas.")
+                        # Aviso discreto se a coluna nova ainda não estiver na planilha antiga
+                        # st.warning(f"Indicador '{metric}' não encontrado.") # Comentado para não poluir se usar planilha antiga
+                        pass
 
             except IndexError:
                 st.warning("Dados incompletos para a turma selecionada.")
 else:
-    st.info("👈 Por favor, faça o upload das planilhas 'Sem MF' e 'Com MF' para iniciar.")
+    st.info("👈 Por favor, faça o upload das planilhas 'Sem MF' e 'Com MF' para iniciar a análise.")
