@@ -9,29 +9,38 @@ st.title("📊 Comparador de Performance: Ex-MF vs Sem MF (Geeko Mode 🦎)")
 
 # --- Função de Formatação Brasileira ---
 def format_br(valor, tipo):
-    """
-    Formata números para o padrão brasileiro (1.000,00).
-    tipo: 'dinheiro', 'porcentagem', 'decimal'
-    """
     if pd.isna(valor):
         return "-"
         
     if tipo == 'dinheiro':
-        # Ex: 1234.56 -> R$ 1.234,56
         texto = f"R$ {valor:,.2f}"
         return texto.replace(',', 'X').replace('.', ',').replace('X', '.')
     
     elif tipo == 'porcentagem':
-        # Ex: 0.50 -> 50,0%
         texto = f"{valor:.1%}"
         return texto.replace('.', ',')
     
     elif tipo == 'decimal':
-        # Ex: 1234.5 -> 1.234,5
         texto = f"{valor:,.1f}"
         return texto.replace(',', 'X').replace('.', ',').replace('X', '.')
     
     return str(valor)
+
+# --- Função para Normalizar Colunas ---
+def normalize_columns(df):
+    """
+    Padroniza os nomes das colunas de Receita Mediana que vieram diferentes
+    nas duas planilhas.
+    """
+    cols_map = {}
+    for col in df.columns:
+        # Verifica variações de "Receita" e "Mediana" e "Exc"
+        if "Receita" in col and "Mediana" in col and ("Exc" in col or "exc" in col):
+            cols_map[col] = "Receita Mediana (Exc. desl.)"
+            
+    if cols_map:
+        return df.rename(columns=cols_map)
+    return df
 
 # --- Upload de Arquivos ---
 st.sidebar.header("📂 Carregar Dados")
@@ -42,9 +51,10 @@ file_mf = st.sidebar.file_uploader("Upload: Planilha Com MF", type=["xlsx", "csv
 def load_data(file):
     try:
         if file.name.endswith('.csv'):
-            return pd.read_csv(file)
+            df = pd.read_csv(file)
         else:
-            return pd.read_excel(file)
+            df = pd.read_excel(file)
+        return normalize_columns(df)
     except Exception as e:
         st.error(f"Erro ao ler o arquivo {file.name}: {e}")
         return None
@@ -54,20 +64,18 @@ if file_sem_mf and file_mf:
     df_mf = load_data(file_mf)
 
     if df_sem_mf is not None and df_mf is not None:
-        # Encontrar turmas em comum
         turmas_sem = set(df_sem_mf['Turma'].unique())
         turmas_mf = set(df_mf['Turma'].unique())
         common_turmas = sorted(list(turmas_sem.intersection(turmas_mf)))
 
         if not common_turmas:
-            st.error("Não foram encontradas Turmas em comum nos arquivos carregados.")
+            st.error("Não foram encontradas Turmas em comum.")
         else:
             # --- Seleção da Safra ---
             st.sidebar.markdown("---")
             selected_turma = st.sidebar.selectbox("Selecione a Safra (Turma)", common_turmas, index=len(common_turmas)-1)
             
             try:
-                # Filtrar dados para a turma selecionada
                 row_sem = df_sem_mf[df_sem_mf['Turma'] == selected_turma].iloc[0]
                 row_mf = df_mf[df_mf['Turma'] == selected_turma].iloc[0]
 
@@ -75,7 +83,7 @@ if file_sem_mf and file_mf:
                 st.markdown(f"Comparativo direto indicador por indicador.")
                 st.markdown("---")
 
-                # Lista Reordenada: Pares de Média e Mediana
+                # Lista Reordenada: Média seguida de Mediana
                 metrics_to_plot = [
                     # KPIs Gerais
                     'Sobrevivência (%)',
@@ -83,34 +91,33 @@ if file_sem_mf and file_mf:
                     'AuC Total',
                     'Receita Anual (F12M) (0.4%)',
                     
-                    # Bloco AuC (Média vs Mediana)
+                    # Bloco AuC (Média -> Mediana)
                     'AuC Médio (Inc. desl.)',
                     'AuC Mediano (Inc. desl.)',
+                    
                     'AuC Médio (Exc. desl.)',
                     'AuC Mediano (Exc. desl.)',
                     
-                    # Bloco Receita (Média vs Mediana)
+                    # Bloco Receita (Média -> Mediana)
                     'Receita Média (Exc. desl.)',
-                    'Receita - Mediana (exc. Desl.)' # Nova Coluna
+                    'Receita Mediana (Exc. desl.)' # Agora padronizado!
                 ]
 
-                color_sem_mf = '#4c72b0' # Azul
-                color_mf = '#55a868'     # Verde
+                color_sem_mf = '#4c72b0'
+                color_mf = '#55a868'
 
                 for metric in metrics_to_plot:
-                    # Verifica se a coluna existe no dataframe carregado
                     if metric in row_sem and metric in row_mf:
                         
                         val_sem = row_sem[metric]
                         val_mf = row_mf[metric]
                         
-                        # Cálculo da diferença (tratando possíveis nulos)
                         if pd.notna(val_sem) and pd.notna(val_mf):
                             diff = val_mf - val_sem
                         else:
                             diff = 0
                         
-                        # Definição de formatação
+                        # Formatação
                         if "(%)" in metric:
                             text_fmt_sem = format_br(val_sem, 'porcentagem')
                             text_fmt_mf = format_br(val_mf, 'porcentagem')
@@ -130,12 +137,11 @@ if file_sem_mf and file_mf:
                             text_fmt_mf = str(val_mf)
                             text_diff = str(diff)
 
-                        # Container para o bloco do indicador
+                        # Layout: Gráfico + Tabela
                         with st.container():
                             st.subheader(metric)
                             col_graph, col_table = st.columns([2, 1])
 
-                            # --- Coluna 1: Gráfico ---
                             with col_graph:
                                 fig = go.Figure()
                                 fig.add_trace(go.Bar(
@@ -152,7 +158,6 @@ if file_sem_mf and file_mf:
                                 )
                                 st.plotly_chart(fig, use_container_width=True)
 
-                            # --- Coluna 2: Tabela ---
                             with col_table:
                                 st.markdown("##### Dados Detalhados")
                                 df_display = pd.DataFrame({
@@ -163,11 +168,6 @@ if file_sem_mf and file_mf:
                                 st.table(df_display)
                             
                             st.markdown("---")
-                    else:
-                        # Aviso discreto se a coluna nova ainda não estiver na planilha antiga
-                        # st.warning(f"Indicador '{metric}' não encontrado.") # Comentado para não poluir se usar planilha antiga
-                        pass
-
             except IndexError:
                 st.warning("Dados incompletos para a turma selecionada.")
 else:
