@@ -24,6 +24,10 @@ def format_br(valor, tipo):
         texto = f"{valor:,.1f}"
         return texto.replace(',', 'X').replace('.', ',').replace('X', '.')
     
+    elif tipo == 'inteiro':
+        texto = f"{valor:,.0f}"
+        return texto.replace(',', 'X').replace('.', ',').replace('X', '.')
+    
     return str(valor)
 
 # --- Função para Normalizar Colunas ---
@@ -82,31 +86,38 @@ if file_sem_mf and file_mf:
                 
                 # --- LISTAS DE INDICADORES ---
                 all_metrics = [
+                    # Contexto
+                    'Entradas Totais',
+                    'Ativos(as)',
+                    
+                    # KPIs Gerais
                     'Sobrevivência (%)',
                     'Tempo Médio (desl.) (meses)',
                     'AuC Total',
                     'Receita Anual (F12M) (0.4%)',
+                    
+                    # Bloco AuC
                     'AuC Médio (Inc. desl.)',
                     'AuC Mediano (Inc. desl.)',
                     'AuC Médio (Exc. desl.)',
                     'AuC Mediano (Exc. desl.)',
+                    
+                    # Bloco Receita
                     'Receita Média (Exc. desl.)',
                     'Receita Mediana (Exc. desl.)'
                 ]
                 
-                # Definição do Default (AuC e Receita apenas)
+                # --- DEFAULT (ATUALIZADO) ---
                 default_metrics = [
-                    'AuC Total',
-                    'Receita Anual (F12M) (0.4%)',
-                    'AuC Médio (Inc. desl.)',
-                    'AuC Mediano (Inc. desl.)',
+                    'Entradas Totais',
+                    'Ativos(as)',
                     'AuC Médio (Exc. desl.)',
                     'AuC Mediano (Exc. desl.)',
                     'Receita Média (Exc. desl.)',
                     'Receita Mediana (Exc. desl.)'
                 ]
 
-                # --- SELETOR DE DADOS (MULTISELECT) ---
+                # --- SELETOR DE DADOS ---
                 selected_metrics = st.multiselect(
                     "📌 Selecione os indicadores que deseja visualizar:",
                     options=all_metrics,
@@ -115,7 +126,6 @@ if file_sem_mf and file_mf:
                 
                 st.markdown("---")
 
-                # Loop apenas nos itens selecionados pelo usuário
                 for metric in selected_metrics:
                     if metric in row_sem and metric in row_mf:
                         
@@ -127,18 +137,27 @@ if file_sem_mf and file_mf:
                         else:
                             diff = 0
                         
+                        # Formatação Inteligente
                         if "(%)" in metric:
                             text_fmt_sem = format_br(val_sem, 'porcentagem')
                             text_fmt_mf = format_br(val_mf, 'porcentagem')
                             text_diff = format_br(diff, 'porcentagem')
+                            
                         elif "AuC" in metric or "Receita" in metric:
                             text_fmt_sem = format_br(val_sem, 'dinheiro')
                             text_fmt_mf = format_br(val_mf, 'dinheiro')
                             text_diff = format_br(diff, 'dinheiro').replace("R$ ", "")
+                            
                         elif "meses" in metric:
                             text_fmt_sem = f"{format_br(val_sem, 'decimal')} meses"
                             text_fmt_mf = f"{format_br(val_mf, 'decimal')} meses"
                             text_diff = f"{format_br(diff, 'decimal')}"
+                            
+                        elif metric in ['Entradas Totais', 'Ativos(as)']:
+                            text_fmt_sem = format_br(val_sem, 'inteiro')
+                            text_fmt_mf = format_br(val_mf, 'inteiro')
+                            text_diff = format_br(diff, 'inteiro')
+                            
                         else:
                             text_fmt_sem = str(val_sem)
                             text_fmt_mf = str(val_mf)
@@ -162,7 +181,7 @@ if file_sem_mf and file_mf:
                                     height=300,
                                     showlegend=False
                                 )
-                                # Mantendo a Key única para evitar erro de ID duplicado
+                                # Key única mantida
                                 st.plotly_chart(fig, use_container_width=True, key=metric)
 
                             with col_table:
